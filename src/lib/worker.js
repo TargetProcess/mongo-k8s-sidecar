@@ -1,6 +1,7 @@
 var mongo = require('./mongo');
 var k8s = require('./k8s');
 var config = require('./config');
+const logger = require('./logger');
 var ip = require('ip');
 var async = require('async');
 var moment = require('moment');
@@ -91,7 +92,7 @@ var workloop = function workloop() {
 
 var finish = function(err, db) {
   if (err) {
-    console.error('Error in workloop', err);
+    logger.error('Error in workloop', err);
   }
 
   if (db && db.close) {
@@ -122,7 +123,7 @@ var inReplicaSet = function(db, pods, status, done) {
   }
 
   if (!primaryExists && podElection(pods)) {
-    console.log('Pod has been elected as a secondary to do primary work');
+    logger.info('Pod has been elected as a secondary to do primary work');
     return primaryWork(db, pods, members, true, done);
   }
 
@@ -136,8 +137,8 @@ var primaryWork = function(db, pods, members, shouldForce, done) {
   var addrToRemove = addrToRemoveLoop(members);
 
   if (addrToAdd.length || addrToRemove.length) {
-    console.log('Addresses to add:    ', addrToAdd);
-    console.log('Addresses to remove: ', addrToRemove);
+    logger.info('Addresses to add:    ', { addrToAdd: addrToAdd });
+    logger.info('Addresses to remove: ', { addrToRemove: addrToRemove });
 
     mongo.addNewReplSetMembers(db, addrToAdd, addrToRemove, shouldForce, done);
     return;
@@ -176,7 +177,7 @@ var notInReplicaSet = function(db, pods, done) {
     }
 
     if (podElection(pods)) {
-      console.log('Pod has been elected for replica set initialization');
+      logger.info('Pod has been elected for replica set initialization');
       var primary = pods[0]; // After the sort election, the 0-th pod should be the primary.
       var primaryStableNetworkAddressAndPort = getPodStableNetworkAddressAndPort(primary);
       // Prefer the stable network ID over the pod IP, if present.
@@ -198,13 +199,13 @@ var invalidReplicaSet = function(db, pods, status, done) {
     members = status.members;
   }
 
-  console.log("Invalid replica set");
+  logger.info("Invalid replica set");
   if (!podElection(pods)) {
-    console.log("Didn't win the pod election, doing nothing");
+    logger.info("Didn't win the pod election, doing nothing");
     return done();
   }
 
-  console.log("Won the pod election, forcing re-initialization");
+  logger.info("Won the pod election, forcing re-initialization");
   var addrToAdd = addrToAddLoop(pods, members);
   var addrToRemove = addrToRemoveLoop(members);
 

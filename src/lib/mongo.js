@@ -2,6 +2,7 @@ var Db = require('mongodb').Db;
 var MongoServer = require('mongodb').Server;
 var async = require('async');
 var config = require('./config');
+const logger = require('./logger');
 
 var localhost = '127.0.0.1'; //Can access mongo as localhost from a sidecar
 
@@ -70,7 +71,7 @@ var replSetGetStatus = function(db, done) {
 };
 
 var initReplSet = function(db, hostIpAndPort, done) {
-  console.log('initReplSet', hostIpAndPort);
+  logger.info('initReplSet', hostIpAndPort);
 
   db.admin().command({ replSetInitiate: {} }, {}, function (err) {
     if (err) {
@@ -83,7 +84,7 @@ var initReplSet = function(db, hostIpAndPort, done) {
         return done(err);
       }
 
-      console.log('initial rsConfig is', rsConfig);
+      logger.info('initial rsConfig is', rsConfig);
       rsConfig.configsvr = config.isConfigRS;
       rsConfig.members[0].host = hostIpAndPort;
       async.retry({times: 20, interval: 500}, function(callback) {
@@ -100,7 +101,7 @@ var initReplSet = function(db, hostIpAndPort, done) {
 };
 
 var replSetReconfig = function(db, rsConfig, force, done) {
-  console.log('replSetReconfig', rsConfig);
+  logger.info('replSetReconfig', { rsConfig: rsConfig });
 
   rsConfig.version++;
 
@@ -156,7 +157,7 @@ var addNewMembers = function(rsConfig, addrsToAdd) {
     for (var j in rsConfig.members) {
       var member = rsConfig.members[j];
       if (member.host === addrToAdd) {
-        console.log("Host [%s] already exists in the Replicaset. Not adding...", addrToAdd);
+        logger.info("Host [%s] already exists in the Replicaset. Not adding...", addrToAdd);
         exists = true;
         break;
       }
